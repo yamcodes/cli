@@ -1,10 +1,4 @@
-<%
-  const arkenvOption = (typeof addOnOption !== 'undefined' && (
-    addOnOption['arkenv'] ||
-    Object.entries(addOnOption).find(([k]) => k.includes('arkenv') || k.includes('info.json'))?.[1]
-  )) || {};
-  const validator = arkenvOption.validator || 'arktype';
--%>
+<% const validator = (addOnOption.arkenv && addOnOption.arkenv.validator) || 'arktype' -%>
 {
   "dependencies": {
 <% if (validator === 'zod') { -%>
