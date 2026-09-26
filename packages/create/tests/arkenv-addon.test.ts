@@ -6,7 +6,19 @@ import {
 } from '../src/add-ons.js'
 import { createApp } from '../src/create-app.js'
 import { createMemoryEnvironment } from '../src/environment.js'
+import {
+  createApp as createEdgeApp,
+  createMemoryEnvironment as createEdgeMemoryEnvironment,
+  finalizeAddOns as finalizeEdgeAddOns,
+  getFrameworkById as getEdgeFrameworkById,
+  populateAddOnOptionsDefaults as populateEdgeAddOnOptionsDefaults,
+} from '../src/edge.js'
 import { createFrameworkDefinition } from '../src/frameworks/react/index.js'
+import { createBundledWorkerManifestLoader } from '../src/generated/worker/bundled-loader.js'
+import {
+  createMemoryEnvironment as createWorkerMemoryEnvironment,
+  createWorkerCreate,
+} from '../src/worker.js'
 
 import type { Framework, FrameworkDefinition, Options } from '../src/types.js'
 
@@ -101,5 +113,71 @@ describe('ArkEnv add-on', () => {
 
     expect(env).toContain('v.minValue(1)')
     expect(env).toContain('v.maxValue(65535)')
+  })
+
+  it('renders the validator-specific Vite import on the edge and worker paths', async () => {
+    const edgeFramework = getEdgeFrameworkById('react')
+    expect(edgeFramework).toBeDefined()
+    const edgeAddOns = await finalizeEdgeAddOns(edgeFramework!, 'file-router', [
+      'arkenv',
+    ])
+    const { environment: edgeEnvironment, output: edgeOutput } =
+      createEdgeMemoryEnvironment('/arkenv-edge')
+
+    await createEdgeApp(edgeEnvironment, {
+      projectName: 'arkenv-edge',
+      targetDir: '/arkenv-edge',
+      framework: edgeFramework!,
+      mode: 'file-router',
+      typescript: true,
+      tailwind: true,
+      packageManager: 'pnpm',
+      git: false,
+      install: false,
+      intent: false,
+      chosenAddOns: edgeAddOns,
+      addOnOptions: {
+        ...populateEdgeAddOnOptionsDefaults(edgeAddOns),
+        arkenv: { validator: 'zod' },
+      },
+      includeExamples: false,
+    } satisfies Options)
+
+    expect(edgeOutput.files['vite.config.ts']).toContain(
+      "import arkenv from '@arkenv/vite-plugin/standard'",
+    )
+
+    const workerCreate = createWorkerCreate(createBundledWorkerManifestLoader())
+    const workerFramework = await workerCreate.getFrameworkById('react')
+    const workerAddOns = await workerCreate.finalizeAddOns(
+      workerFramework!,
+      'file-router',
+      ['arkenv'],
+    )
+    const { environment: workerEnvironment, output: workerOutput } =
+      createWorkerMemoryEnvironment('/arkenv-worker')
+
+    await workerCreate.createApp(workerEnvironment, {
+      projectName: 'arkenv-worker',
+      targetDir: '/arkenv-worker',
+      framework: workerFramework!,
+      mode: 'file-router',
+      typescript: true,
+      tailwind: true,
+      packageManager: 'pnpm',
+      git: false,
+      install: false,
+      intent: false,
+      chosenAddOns: workerAddOns,
+      addOnOptions: {
+        ...workerCreate.populateAddOnOptionsDefaults(workerAddOns),
+        arkenv: { validator: 'valibot' },
+      },
+      includeExamples: false,
+    } satisfies Options)
+
+    expect(workerOutput.files['vite.config.ts']).toContain(
+      "import arkenv from '@arkenv/vite-plugin/standard'",
+    )
   })
 })
