@@ -42,7 +42,7 @@
   "integrations": [
     {
       "type": "vite-plugin",
-      "import": "import arkenv from '@arkenv/vite-plugin'",
+      "import": "import arkenv from '<%= (addOnOption.arkenv && (addOnOption.arkenv.validator === 'zod' || addOnOption.arkenv.validator === 'valibot')) ? '@arkenv/vite-plugin/standard' : '@arkenv/vite-plugin' %>'",
       "code": "arkenv()"
     }
   ]
